@@ -1,13 +1,53 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+0:本设计文件的目的提供数据访问的函数,即对数据库进行封装
+对象-关系映射(OBJECT/RELATIONALMAPPING,简称ORM),是随着面向对象的软件开发方法发展而产生的。
+用来把对象模型表示的对象映射到基于SQL的关系模型数据库结构中去。
+这样，我们在具体的操作实体对象的时候，就不需要再去和复杂的SQL语句打交道，只需简单的操作实体对象的属性和方法。
+ORM技术是在对象和关系之间提供了一条桥梁，前台的对象型数据和数据库中的关系型的数据通过这个桥梁来相互转化。
+////////////////////////////////////////
 
+////////////////////////////////////////
+1:引入设计所需的库
 import asyncio, logging
-
 import aiomysql
+////////////////////////////////////////
 
+////////////////////////////////////////
+2:打印SQL信息
 def log(sql, args=()):
     logging.info('SQL: %s' % sql)
+////////////////////////////////////////
+
+////////////////////////////////////////
+3:创建连接池
+为了简化并更好地标识异步IO，从Python 3.5开始引入了新的语法async和await，可以让coroutine的代码更简洁易读。
+1.把@asyncio.coroutine替换为async；
+2.把yield from替换为await。
+我们需要创建一个全局的连接池，每个HTTP请求都可以从连接池中直接获取数据库连接。
+使用连接池的好处是不必频繁地打开和关闭数据库连接，而是能复用就尽量复用。
+
+aiomsql.create_pool:
+关于create_pool函数的说明
+参考:https://aiomysql.readthedocs.io/en/latest/pool.html
+
+开始的host等参数与connection相关:
+
+https://aiomysql.readthedocs.io/en/latest/connection.html#connection
+//Connection
+str host:host where the database server is located, default: localhost.
+int port:MySQL port to use, default is usually OK.
+str user:username to log in as.
+str password:password to use.
+str db:database to use, None to not use a particular one.
+str charset:charset you want to use, for example ‘utf8’.
+autocommit:Autocommit mode. None means use server default. (default: False)
+//Pool
+minsize (int) – minimum sizes of the pool.
+maxsize (int) – maximum sizes of the pool.
+loop – is an optional event loop instance, asyncio.get_event_loop() is used if loop is not specified.
+
 
 async def create_pool(loop, **kw):
     logging.info('create database connection pool...')
@@ -24,7 +64,29 @@ async def create_pool(loop, **kw):
         minsize=kw.get('minsize', 1),
         loop=loop
     )
+////////////////////////////////////////
 
+////////////////////////////////////////
+4:实现SELECT语句
+cursor,记录访问数据库信息的一个游标
+游标（cursor）
+　　游标是系统为用户开设的一个数据缓冲区，存放SQL语句的执行结果
+https://aiomysql.readthedocs.io/en/latest/cursors.html
+
+DictCursor:
+A cursor which returns results as a dictionary. All methods and arguments same as Cursor
+
+
+execute(query, args=None):
+  Coroutine, executes the given operation substituting any markers with the given parameters.
+    For example, getting all rows where id is 5:
+    yield from cursor.execute("SELECT * FROM t1 WHERE id=%s", (5,))
+    Parameters:	
+        query (str) – sql statement
+        args (list) – tuple or list of arguments for sql query
+    Returns int: number of rows that has been produced of affected
+
+如果传入size参数，就通过fetchmany()获取最多指定数量的记录，否则，通过fetchall()获取所有记录。
 async def select(sql, args, size=None):
     log(sql, args)
     global __pool
@@ -37,7 +99,12 @@ async def select(sql, args, size=None):
                 rs = await cur.fetchall()
         logging.info('rows returned: %s' % len(rs))
         return rs
+////////////////////////////////////////
 
+////////////////////////////////////////
+5:执行函数
+模仿修改数据库的过程.
+https://aiomysql.readthedocs.io/en/latest/connection.html?highlight=pool commit
 async def execute(sql, args, autocommit=True):
     log(sql)
     async with __pool.get() as conn:
@@ -54,13 +121,22 @@ async def execute(sql, args, autocommit=True):
                 await conn.rollback()
             raise
         return affected
+////////////////////////////////////////
+
+////////////////////////////////////////
+6:添加问号
+参考str类默认函数
+https://docs.python.org/3/library/stdtypes.html?highlight=join#str.join
 
 def create_args_string(num):
     L = []
     for n in range(num):
         L.append('?')
     return ', '.join(L)
+////////////////////////////////////////
 
+////////////////////////////////////////
+7:创建了一个包含4个属性的类,后续都是继承Field.
 class Field(object):
 
     def __init__(self, name, column_type, primary_key, default):
@@ -96,6 +172,10 @@ class TextField(Field):
 
     def __init__(self, name=None, default=None):
         super().__init__(name, 'text', False, default)
+////////////////////////////////////////
+
+////////////////////////////////////////
+8:
 
 class ModelMetaclass(type):
 
@@ -132,6 +212,13 @@ class ModelMetaclass(type):
         attrs['__update__'] = 'update `%s` set %s where `%s`=?' % (tableName, ', '.join(map(lambda f: '`%s`=?' % (mappings.get(f).name or f), fields)), primaryKey)
         attrs['__delete__'] = 'delete from `%s` where `%s`=?' % (tableName, primaryKey)
         return type.__new__(cls, name, bases, attrs)
+////////////////////////////////////////
+
+////////////////////////////////////////
+此处涉及到定制类的概念
+http://www.liaoxuefeng.com/wiki/
+0014316089557264a6b348958f449949df42a6d3a2e542c000/
+0014319098638265527beb24f7840aa97de564ccc7f20f6000
 
 class Model(dict, metaclass=ModelMetaclass):
 
@@ -226,3 +313,6 @@ class Model(dict, metaclass=ModelMetaclass):
         rows = await execute(self.__delete__, args)
         if rows != 1:
            logging.warn('failed to remove by primary key: affected rows: %s' % rows)
+////////////////////////////////////////
+
+////////////////////////////////////////
