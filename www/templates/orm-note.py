@@ -175,7 +175,18 @@ class TextField(Field):
 ////////////////////////////////////////
 
 ////////////////////////////////////////
-8:
+8:原类的使用
+www.liaoxuefeng.com/wiki/0014316089557264a6b348958f449949df42a6d3a2e542c000/0014319106919344c4ef8b1e04c48778bb45796e0335839000
+
+主关键字(primary key)是表中的一个或多个字段，它的值用于唯一地标识表中的某一条记录。在两个表的关系中，主关键字用来在一个表中引用来自于另一个表中的特定记录。主关键字是一种唯一关键字，表定义的一部分。一个表的主键可以由多个关键字共同组成，并且主关键字的列不能包含空值。主关键字是可选的，并且可在 CREATE TABLE 或 ALTER TABLE 语句中定义。
+
+当我们传入关键字参数metaclass时，魔术就生效了，它指示Python解释器在创建MyList时，要通过ListMetaclass.__new__()来创建，在此，我们可以修改类的定义，比如，加上新的方法，然后，返回修改后的定义。
+
+__new__()方法接收到的参数依次是：
+ 1当前准备创建的类的对象；
+ 2类的名字；
+ 3类继承的父类集合；
+ 4类的方法集合。
 
 class ModelMetaclass(type):
 
@@ -188,7 +199,7 @@ class ModelMetaclass(type):
         fields = []
         primaryKey = None
         for k, v in attrs.items():
-            if isinstance(v, Field):
+            if isinstance(v, Field): #判断是否属于Field类
                 logging.info('  found mapping: %s ==> %s' % (k, v))
                 mappings[k] = v
                 if v.primary_key:
@@ -201,7 +212,7 @@ class ModelMetaclass(type):
         if not primaryKey:
             raise StandardError('Primary key not found.')
         for k in mappings.keys():
-            attrs.pop(k)
+            attrs.pop(k)  #这里要删除原有的类
         escaped_fields = list(map(lambda f: '`%s`' % f, fields))
         attrs['__mappings__'] = mappings # 保存属性和列的映射关系
         attrs['__table__'] = tableName
@@ -238,6 +249,7 @@ class Model(dict, metaclass=ModelMetaclass):
         return getattr(self, key, None)
 
     def getValueOrDefault(self, key):
+
         value = getattr(self, key, None)
         if value is None:
             field = self.__mappings__[key]
