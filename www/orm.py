@@ -6,6 +6,8 @@ import asyncio, logging
 
 import aiomysql
 
+logging.basicConfig(level=logging.INFO)
+
 def log(sql, args=()):
     logging.info('SQL: %s' % sql)
 
@@ -24,6 +26,17 @@ async def create_pool(loop, **kw):
         minsize=kw.get('minsize', 1),
         loop=loop
     )
+
+
+async def destroy_pool():  
+     global __pool  
+     if __pool is not None :  
+         __pool.close()  # 关闭进程池, close()不是一个协程，不用yield from或await  
+         await __pool.wait_closed() # 但wait_close()是一个协程.
+
+
+
+
 
 async def select(sql, args, size=None):
     log(sql, args)
@@ -226,3 +239,4 @@ class Model(dict, metaclass=ModelMetaclass):
         rows = await execute(self.__delete__, args)
         if rows != 1:
            logging.warn('failed to remove by primary key: affected rows: %s' % rows)
+
