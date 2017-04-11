@@ -64,6 +64,16 @@ async def create_pool(loop, **kw):
         minsize=kw.get('minsize', 1),
         loop=loop
     )
+
+#补充:
+Before closing event loop, you need to close connection pool, see docs 
+在关闭event loop之前，首先需要关闭连接池。
+
+async def destroy_pool():  
+     global __pool  
+     if __pool is not None :  
+         __pool.close()  # 关闭进程池, close()不是一个协程，不用yield from或await  
+         await __pool.wait_closed() # 但wait_close()是一个协程.
 ////////////////////////////////////////
 
 ////////////////////////////////////////
