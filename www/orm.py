@@ -22,11 +22,11 @@ async def create_pool(loop, **kw):
         db=kw['db'],
         charset=kw.get('charset', 'utf8'),
         autocommit=kw.get('autocommit', True),
-        maxsize=kw.get('maxsize', 10),
+        maxsize=kw.get('maxsize', 10),  
         minsize=kw.get('minsize', 1),
         loop=loop
     )
-
+        
 
 async def destroy_pool():  
      global __pool  
