@@ -91,7 +91,7 @@ async def index(request, *, page='1'):
     }
 
 @get('/blog/{id}')
-async def get_blog(id):
+async def get_blog(request,*,id):   
     blog = await Blog.find(id)
     comments = await Comment.findAll('blog_id=?', [id], orderBy='created_at desc')
     for c in comments:
@@ -100,7 +100,8 @@ async def get_blog(id):
     return {
         '__template__': 'blog.html',
         'blog': blog,
-        'comments': comments
+        'comments': comments,
+        '__user__' : request.__user__
     }
 
 @get('/register')
@@ -164,10 +165,11 @@ def manage_blogs(request,*, page='1'):
     }
 
 @get('/manage/comments')
-def manage_comments(*, page='1'):
+def manage_comments(request,*, page='1'):
     return {
         '__template__': 'manage_comments.html',
-        'page_index': get_page_index(page)
+        'page_index': get_page_index(page),
+         '__user__' : request.__user__
     }
 
 @get('/manage/blogs/create')
@@ -180,18 +182,20 @@ def manage_create_blog(request):
     }
 
 @get('/manage/blogs/edit')
-def manage_edit_blog(*, id):
+def manage_edit_blog(request,*, id):
     return {
         '__template__': 'manage_blog_edit.html',
         'id': id,
-        'action': '/api/blogs/%s' % id
+        'action': '/api/blogs/%s' % id,
+         '__user__' : request.__user__
     }
 
 @get('/manage/users')
-def manage_users(*, page='1'):
+def manage_users(request,*, page='1'):
     return {
         '__template__': 'manage_users.html',
-        'page_index': get_page_index(page)
+        'page_index': get_page_index(page),
+         '__user__' : request.__user__
     }
 
 
